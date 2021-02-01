@@ -1,0 +1,16 @@
+/.git/
+/.vscode/
+/example/
+/src/
+/build/
+.gitignore
+.npmignore
+.babelrc
+.babelrc.*
+.eslintrc
+.eslintrc.*
+tsconfig.json
+yarn.lock
+*.log
+webpack.config.js
+tsconfig.json
