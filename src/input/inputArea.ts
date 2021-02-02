@@ -3,9 +3,10 @@ import { punctuation } from '../common/definition';
 export class InputArea {
     public readonly containerElement: HTMLElement;
     public readonly showElement: HTMLElement;
-    private readonly preElement: HTMLElement;
-    private readonly charWidth: number;
-    private readonly textHeight: number;
+    private preElement: HTMLElement;
+    private charWidth: number;
+    private textHeight: number;
+    private rowCount: number;
     private textBytesCount: number = 0;
 
     constructor(el: HTMLElement, text: string) {
@@ -24,48 +25,77 @@ export class InputArea {
         // show element style
         this.showElement.style.position = 'relative';
         this.showElement.style.lineHeight = '30px';
-        this.showElement.style.minHeight = '30px';
+        // this.showElement.style.minHeight = '30px';
+        this.showElement.style.height = '100%';
         this.showElement.style.fontSize = '14px';
         this.textHeight = this.computeTextHeight();
         this.charWidth = this.computeCharWidth();
+        this.rowCount = this.computeRowCount();
         if (text) {
-            const splitArr: string[] = this.splitText(text);
-            if (splitArr.length === 0) {
-                this.updateText('');
-            } else {
-                this.updateText(this.connectText(splitArr));
-            }
+            this.updateText(text);
         }
     }
 
     public updateText(text: string) {
-        this.preElement.innerHTML = text;
+        const splitArr: string[] = this.splitText(text);
+        if (splitArr.length === 0) {
+            this.preElement.innerHTML = '';
+        } else {
+            this.computeContent(splitArr);
+        }
     }
 
-    private connectText(splitArr: string[]): string {
+    private appendToPre(els: HTMLElement[]) {
+        if (els.length === 0) {
+            return;
+        }
+        els.forEach(el => {
+            this.preElement.append(el);
+        })
+    }
+
+    private computeContent(splitArr: string[]): void {
         const rect = this.preElement.getBoundingClientRect();
         const viewWidth = rect.right - rect.left;
         const rowCharCount = viewWidth / this.charWidth;
-        console.log('row width:' + viewWidth, 'count:' + rowCharCount);
-        let result = '';
-        let c = 0;
+        let result: HTMLElement[] = [];
+        let c = 0, rows = 0;
         let cChar: string;
         for (let i = 0; i < splitArr.length; i ++) {
-            if (c >= rowCharCount) {
-                break;
-            }
-            cChar = splitArr[i];
-            if (cChar.length === 1) {
-                c += this.charBytesCount(cChar);
+            if (c < rowCharCount) {
+                cChar = splitArr[i];
+                if (cChar.length === 1) {
+                    c += this.charBytesCount(cChar);
+                } else {
+                    for (let j = 0; j < cChar.length; j ++) {
+                        c += this.charBytesCount(cChar[j]);
+                    }
+                }
+                let span = document.createElement('span');
+                span.append(document.createTextNode(cChar));
+                result.push(span);
             } else {
-                for (let j = 0; j < cChar.length; j ++) {
-                    c += this.charBytesCount(cChar[j]);
+                rows += 1;
+                if (c > rowCharCount) {
+                    let diff = c - rowCharCount;
+                    diff = diff * this.charWidth;
+                    console.log(diff);
+                    let letter = '-' + (diff / (rowCharCount - 1) * 2) + 'px';
+                    result.forEach(el => {
+                        el.style.letterSpacing = letter;
+                    })
+                }
+                this.appendToPre(result);
+                c = 0;
+                result = [];
+                if (rows >= this.rowCount) {
+                    break;
                 }
             }
-            result += '<span>' + cChar + '</span>';
         }
-        return result;
-        // return '<span>' + splitArr.join('</span><span>') + '</span>';
+        if (result.length > 0) {
+            this.appendToPre(result);
+        }
     }
 
     private charBytesCount(char: string): number {
@@ -166,5 +196,19 @@ export class InputArea {
         let width = (rect.right - rect.left) / 10;
         measureText.remove();
         return width || 10;
+    }
+
+    private computeRowCount(): number {
+        let measureAuxiliary = document.createElement('div');
+        measureAuxiliary.style.position = 'absolute';
+        measureAuxiliary.style.left = '0';
+        measureAuxiliary.style.top = '0';
+        measureAuxiliary.style.zIndex = '-99';
+        measureAuxiliary.style.width = '100%';
+        measureAuxiliary.style.height = '100%';
+        this.showElement.append(measureAuxiliary);
+        let rect = measureAuxiliary.getBoundingClientRect();
+        let maxHeight = rect.bottom - rect.top;
+        return Math.floor(maxHeight / this.textHeight);
     }
 }
